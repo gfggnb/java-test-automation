@@ -1,3 +1,4 @@
+
 package tests;
 
 import java.util.Map;
@@ -27,158 +28,179 @@ public class BookingWorkflowTest {
     @Test(groups = "workflow")
     public void verifyBookingWorkflow() {
 
-        // ==============================
-        // CREATE BOOKING
-        // ==============================
+        int bookingId = 0;
+        String token = null;
+        boolean deleteSucceeded = false;
 
-        Booking booking = BookingBuilder.createBooking(
-                firstName,
-                lastName,
-                totalPrice,
-                checkIn,
-                checkOut,
-                depositPaid,
-                additionalNeeds);
+        try {
+            // 1. CREATE BOOKING
+            Booking booking = BookingBuilder.createBooking(
+                    firstName,
+                    lastName,
+                    totalPrice,
+                    checkIn,
+                    checkOut,
+                    depositPaid,
+                    additionalNeeds
+            );
 
-        Response createResponse = BookingAPI.createBooking(booking);
+            Response createResponse = BookingAPI.createBooking(booking);
 
-        ResponseValidator.validateStatusCode(createResponse, 200);
-        ResponseValidator.validateContentType(createResponse);
-        ResponseValidator.validateResponseTime(createResponse);
-        ResponseValidator.validateSchema(createResponse, "schema/create-booking-response-schema.json");
+            ResponseValidator.validateStatusCode(createResponse, 200);
+            ResponseValidator.validateContentType(createResponse);
+            ResponseValidator.validateResponseTime(createResponse);
+            ResponseValidator.validateSchema(
+                    createResponse,
+                    "schema/create-booking-response-schema.json"
+            );
 
-        BookingResponse bookingResponse =
-                createResponse.as(BookingResponse.class);
+            BookingResponse bookingResponse =
+                    createResponse.as(BookingResponse.class);
 
-        ResponseValidator.validateBookingResponse(
-                booking,
-                bookingResponse);
+            ResponseValidator.validateBookingResponse(
+                    booking,
+                    bookingResponse
+            );
 
-        int bookingId = bookingResponse.getBookingid();
+            bookingId = bookingResponse.getBookingid();
 
-        // ==============================
-        // GENERATE TOKEN
-        // ==============================
+            Assert.assertTrue(
+                    bookingId > 0,
+                    "创建预约后应返回有效的 bookingId"
+            );
 
-        String token = AuthenticationAPI.generateToken();
+            // 2. GENERATE TOKEN
+            token = AuthenticationAPI.generateToken();
 
-        // ==============================
-        // GET BOOKING
-        // ==============================
+            // 3. GET BOOKING
+            Response getResponse = BookingAPI.getBooking(bookingId);
 
-        Response getResponse =
-                BookingAPI.getBooking(bookingId);
+            ResponseValidator.validateStatusCode(getResponse, 200);
+            ResponseValidator.validateContentType(getResponse);
+            ResponseValidator.validateResponseTime(getResponse);
+            ResponseValidator.validateSchema(
+                    getResponse,
+                    "schema/booking-schema.json"
+            );
 
-        ResponseValidator.validateStatusCode(getResponse, 200);
-        ResponseValidator.validateContentType(getResponse);
-        ResponseValidator.validateResponseTime(getResponse);
-        ResponseValidator.validateSchema(
-                getResponse,
-                "schema/booking-schema.json");
+            Booking actualBooking = getResponse.as(Booking.class);
 
-        Booking actualBooking =
-                getResponse.as(Booking.class);
+            ResponseValidator.validateBooking(booking, actualBooking);
 
-        ResponseValidator.validateBooking(
-                booking,
-                actualBooking);
+            // 4. UPDATE BOOKING
+            Booking updatedBooking = BookingBuilder.createBooking(
+                    firstName + " Updated",
+                    lastName,
+                    totalPrice + 1000,
+                    checkIn,
+                    checkOut,
+                    depositPaid,
+                    "Dinner"
+            );
 
-        // ==============================
-        // UPDATE BOOKING
-        // ==============================
+            Response updateResponse = BookingAPI.updateBooking(
+                    bookingId,
+                    token,
+                    updatedBooking
+            );
 
-        Booking updatedBooking =
-                BookingBuilder.createBooking(
-                        firstName + " Updated",
-                        lastName,
-                        totalPrice + 1000,
-                        checkIn,
-                        checkOut,
-                        depositPaid,
-                        "Dinner");
+            ResponseValidator.validateStatusCode(updateResponse, 200);
+            ResponseValidator.validateContentType(updateResponse);
+            ResponseValidator.validateResponseTime(updateResponse);
+            ResponseValidator.validateSchema(
+                    updateResponse,
+                    "schema/booking-schema.json"
+            );
 
-        Response updateResponse =
-                BookingAPI.updateBooking(
-                        bookingId,
-                        token,
-                        updatedBooking);
+            Booking updatedResponse = updateResponse.as(Booking.class);
 
-        ResponseValidator.validateStatusCode(updateResponse, 200);
-        ResponseValidator.validateContentType(updateResponse);
-        ResponseValidator.validateResponseTime(updateResponse);
-        ResponseValidator.validateSchema(
-                updateResponse,
-                "schema/booking-schema.json");
-        
+            ResponseValidator.validateBooking(
+                    updatedBooking,
+                    updatedResponse
+            );
 
-        Booking updatedResponse =
-                updateResponse.as(Booking.class);
+            // 5. PATCH BOOKING
+            Map<String, Object> patchRequest = new PatchBuilder()
+                    .addField("firstname", "Patched Name")
+                    .build();
 
-        ResponseValidator.validateBooking(
-                updatedBooking,
-                updatedResponse);
+            Response patchResponse = BookingAPI.patchBooking(
+                    bookingId,
+                    token,
+                    patchRequest
+            );
 
-     // ==============================
-     // PATCH BOOKING
-     // ==============================
+            ResponseValidator.validateStatusCode(patchResponse, 200);
+            ResponseValidator.validateContentType(patchResponse);
+            ResponseValidator.validateResponseTime(patchResponse);
+            ResponseValidator.validateSchema(
+                    patchResponse,
+                    "schema/booking-schema.json"
+            );
 
-     Map<String, Object> patchRequest =
-             new PatchBuilder()
-                     .addField("firstname", "Patched Name")
-                     .build();
+            Booking patchedBooking = patchResponse.as(Booking.class);
 
-     Response patchResponse =
-             BookingAPI.patchBooking(
-                     bookingId,
-                     token,
-                     patchRequest);
+            Assert.assertEquals(
+                    patchedBooking.getFirstname(),
+                    "Patched Name"
+            );
 
-     ResponseValidator.validateStatusCode(patchResponse, 200);
-     ResponseValidator.validateContentType(patchResponse);
-     ResponseValidator.validateResponseTime(patchResponse);
-     ResponseValidator.validateSchema(
-             patchResponse,
-             "schema/booking-schema.json");
+            Assert.assertEquals(
+                    patchedBooking.getLastname(),
+                    updatedBooking.getLastname()
+            );
 
-     Booking patchedBooking =
-             patchResponse.as(Booking.class);
+            Assert.assertEquals(
+                    patchedBooking.getTotalprice(),
+                    updatedBooking.getTotalprice()
+            );
 
-     Assert.assertEquals(
-             patchedBooking.getFirstname(),
-             "Patched Name");
+            Assert.assertEquals(
+                    patchedBooking.getAdditionalneeds(),
+                    updatedBooking.getAdditionalneeds()
+            );
 
-     Assert.assertEquals(
-             patchedBooking.getLastname(),
-             updatedBooking.getLastname());
+            // 6. DELETE BOOKING
+            Response deleteResponse = BookingAPI.deleteBooking(
+                    bookingId,
+                    token
+            );
 
-     Assert.assertEquals(
-             patchedBooking.getTotalprice(),
-             updatedBooking.getTotalprice());
+            ResponseValidator.validateStatusCode(deleteResponse, 201);
+            deleteSucceeded = true;
 
-     Assert.assertEquals(
-             patchedBooking.getAdditionalneeds(),
-             updatedBooking.getAdditionalneeds());
+            // 7. VERIFY DELETION
+            Response deletedResponse = BookingAPI.getBooking(bookingId);
 
-        // ==============================
-        // DELETE BOOKING
-        // ==============================
+            ResponseValidator.validateStatusCode(deletedResponse, 404);
 
-        Response deleteResponse =
-                BookingAPI.deleteBooking(
-                        bookingId,
-                        token);
+        } finally {
+            // 8. 异常时尝试清理尚未成功删除的预约
+            if (bookingId > 0 && !deleteSucceeded) {
+                try {
+                    if (token == null) {
+                        token = AuthenticationAPI.generateToken();
+                    }
 
-        ResponseValidator.validateStatusCode(deleteResponse, 201);
+                    Response cleanupResponse =
+                            BookingAPI.deleteBooking(bookingId, token);
 
-        // ==============================
-        // VERIFY DELETION
-        // ==============================
+                    int statusCode = cleanupResponse.getStatusCode();
 
-        Response deletedResponse =
-                BookingAPI.getBooking(bookingId);
+                    Assert.assertTrue(
+                            statusCode == 201 || statusCode == 404,
+                            "清理预约失败，bookingId=" + bookingId
+                                    + "，HTTP 状态码=" + statusCode
+                    );
 
-        ResponseValidator.validateStatusCode(
-                deletedResponse,
-                404);
+                } catch (Exception e) {
+                    throw new AssertionError(
+                            "工作流测试清理预约时发生异常，bookingId="
+                                    + bookingId,
+                            e
+                    );
+                }
+            }
+        }
     }
 }

@@ -89,12 +89,6 @@
     <scope>test</scope>
 </dependency>
 
-<dependency>
-    <groupId>io.rest-assured</groupId>
-    <artifactId>json-schema-validator</artifactId>
-    <version>5.5.6</version>
-    <scope>test</scope>
-</dependency>
 
 <!-- Source: https://mvnrepository.com/artifact/org.apache.poi/poi-ooxml-schemas -->
 <dependency>

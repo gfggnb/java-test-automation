@@ -15,7 +15,7 @@ public class BookingDataProvider {
 
         Object[][] data = ExcelUtils.getExcelData(
                 FILE_PATH,
-                "CreateBooking");
+                "createBooking");
 
         for (Object[] row : data) {
 

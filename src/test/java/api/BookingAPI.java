@@ -133,13 +133,36 @@ public class BookingAPI {
     // ==========================
     // CREATE BOOKING & RETURN ID
     // ==========================
+
     public static int createBookingAndReturnId(Booking booking) {
 
         Response response = createBooking(booking);
 
+        // 检查创建请求是否成功
+        if (response.getStatusCode() != 200) {
+            throw new AssertionError(
+                    "创建预约失败，HTTP 状态码："
+                            + response.getStatusCode()
+                            + "，响应内容："
+                            + response.asString()
+            );
+        }
+
+        // 解析响应，获取预约 ID
         BookingResponse bookingResponse =
                 response.as(BookingResponse.class);
 
-        return bookingResponse.getBookingid();
+        int bookingId = bookingResponse.getBookingid();
+
+        // 检查预约 ID 是否有效
+        if (bookingId <= 0) {
+            throw new AssertionError(
+                    "创建预约失败，返回的 bookingid 无效："
+                            + bookingId
+            );
+        }
+
+        return bookingId;
     }
+
 }
